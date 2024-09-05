@@ -33,7 +33,7 @@ class _RegisterPageState extends State<RegisterPage> {
         phoneNoCtl.text.isNotEmpty &&
         passNoCtl.text.isNotEmpty &&
         confpassNoCtl.text.isNotEmpty) {
-      var regBody = {
+      var reqBody = {
         "name": nameNoCtl.text,
         "email": emailNoCtl.text,
         "phone": phoneNoCtl.text,
@@ -44,7 +44,7 @@ class _RegisterPageState extends State<RegisterPage> {
       try {
         var response = await http.post(Uri.parse(registerion),
             headers: {"Content-Type": "application/json"},
-            body: jsonEncode(regBody));
+            body: jsonEncode(reqBody));
 
         var jsonResponse = jsonDecode(response.body);
 

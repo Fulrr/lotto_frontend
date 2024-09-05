@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import 'package:lotto_app/config/config.dart';
+import 'package:lotto_app/config/configg.dart';
 import 'package:lotto_app/models/request/CustomersLoginPostResquest.dart';
 import 'package:lotto_app/models/response/CustomersLoginPostRes.dart';
 import 'package:lotto_app/pages/reg.dart';
@@ -8,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'dart:developer' as dev;
 
 import 'package:lotto_app/pages/home.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class loginPage extends StatefulWidget {
   loginPage({Key? key}) : super(key: key);
@@ -19,18 +23,71 @@ class loginPage extends StatefulWidget {
 class _loginPageState extends State<loginPage> {
   String url = '';
   String text = "";
-  TextEditingController phoneNoCtl = TextEditingController();
+  TextEditingController emailNoCtl = TextEditingController();
   TextEditingController passNoCtl = TextEditingController();
+  bool _isNotValidata = false;
+  late SharedPreferences prefs;
+
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   initSharedPref();
+  // }
 
   @override
   void initState() {
     super.initState();
+    initSharedPref();
     Configuration.getConfig().then(
       (value) {
         dev.log(value['apiEndpoint']);
         url = value['apiEndpoint'];
       },
     );
+  }
+
+  void initSharedPref() async {
+    prefs = await SharedPreferences.getInstance();
+  }
+
+  void loginUser() async {
+    if (emailNoCtl.text.isNotEmpty && passNoCtl.text.isNotEmpty) {
+      var reqBody = {
+        "email": emailNoCtl.text,
+        "password": passNoCtl.text,
+      };
+
+      try {
+        var response = await http.post(Uri.parse(login),
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode(reqBody));
+
+        var jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['status']) {
+          var myToken = jsonResponse['token'];
+          prefs.setString('token', myToken);
+
+          // Navigate to HomePage
+          Navigator.of(context).pushReplacement(MaterialPageRoute(
+              builder: (context) => HomePage(token: myToken)));
+        } else {
+          setState(() {
+            text = "Login failed. Please check your credentials.";
+          });
+          dev.log(
+              'Login failed: ${jsonResponse['message'] ?? "Unknown error"}');
+        }
+      } catch (e) {
+        setState(() {
+          text = "An error occurred. Please try again later.";
+        });
+        dev.log('Error during login: $e');
+      }
+    } else {
+      setState(() {
+        text = "Please enter both email and password.";
+      });
+    }
   }
 
   @override
@@ -77,9 +134,9 @@ class _loginPageState extends State<loginPage> {
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: TextField(
-                          controller: phoneNoCtl,
+                          controller: emailNoCtl,
                           decoration: InputDecoration(
-                            hintText: 'Username',
+                            hintText: 'Email',
                             prefixIcon: Icon(Icons.person, color: Colors.grey),
                             border: InputBorder.none,
                             contentPadding: EdgeInsets.symmetric(
@@ -109,7 +166,7 @@ class _loginPageState extends State<loginPage> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: login,
+                          onPressed: loginUser,
                           child: Text('Login',
                               style:
                                   TextStyle(fontSize: 18, color: Colors.white)),
@@ -154,57 +211,6 @@ class _loginPageState extends State<loginPage> {
         ],
       ),
     );
-  }
-
-  void login() {
-    var data = CustomersLoginPostResquest(
-        phone: phoneNoCtl.text, password: passNoCtl.text);
-
-    http
-        .post(Uri.parse('$url/customers/login'),
-            headers: {"Content-Type": "application/json; charset=utf-8"},
-            body: customersLoginPostResquestToJson(data))
-        .then((response) {
-      if (response.statusCode == 200) {
-        try {
-          CustomersLoginPostRes customers =
-              customersLoginPostResFromJson(response.body);
-          if (customers.customer != null && customers.customer.email != null) {
-            dev.log("Customer email: ${customers.customer.email}");
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => HomePage(cid: customers.customer.idx),
-                ));
-          } else {
-            dev.log("Customer or email is null");
-            setState(() {
-              text = "Login failed: Invalid customer data";
-            });
-          }
-        } catch (e) {
-          dev.log("Error parsing response: $e");
-          setState(() {
-            text = "Login failed: Error processing response";
-          });
-        }
-      } else if (response.statusCode == 401) {
-        dev.log("Authentication failed: 401 Unauthorized");
-        setState(() {
-          text = "Login failed: Incorrect username or password";
-        });
-      } else {
-        dev.log("HTTP Error: ${response.statusCode}");
-        setState(() {
-          text = "Login failed: Server error (${response.statusCode})";
-        });
-      }
-    }).catchError((error) {
-      dev.log("Network error: $error");
-      setState(() {
-        text = "Login failed: Network error";
-      });
-    });
   }
 
   void Reg() {
