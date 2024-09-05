@@ -9,6 +9,8 @@ import 'package:lotto_app/pages/login.dart';
 import 'package:http/http.dart' as http;
 import 'package:lotto_app/pages/home.dart';
 
+import 'package:lotto_app/config/configg.dart';
+
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
@@ -23,6 +25,56 @@ class _RegisterPageState extends State<RegisterPage> {
   TextEditingController phoneNoCtl = TextEditingController();
   TextEditingController passNoCtl = TextEditingController();
   TextEditingController confpassNoCtl = TextEditingController();
+  bool _isNotValidata = false;
+
+  void registerUser() async {
+    if (nameNoCtl.text.isNotEmpty &&
+        emailNoCtl.text.isNotEmpty &&
+        phoneNoCtl.text.isNotEmpty &&
+        passNoCtl.text.isNotEmpty &&
+        confpassNoCtl.text.isNotEmpty) {
+      var regBody = {
+        "name": nameNoCtl.text,
+        "email": emailNoCtl.text,
+        "phone": phoneNoCtl.text,
+        "password": passNoCtl.text,
+        "confpass": confpassNoCtl.text,
+      };
+
+      try {
+        var response = await http.post(Uri.parse(registerion),
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode(regBody));
+
+        var jsonResponse = jsonDecode(response.body);
+
+        dev.log("Response status: ${jsonResponse['status']}");
+
+        if (jsonResponse['status'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Registration successful!')),
+          );
+          navigateToLogin();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Registration failed. Please try again.')),
+          );
+        }
+      } catch (e) {
+        dev.log("Error during registration: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('An error occurred. Please try again later.')),
+        );
+      }
+    } else {
+      setState(() {
+        _isNotValidata = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please fill in all fields.')),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -42,10 +94,7 @@ class _RegisterPageState extends State<RegisterPage> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFE1E4F9),
-              Color(0xFFF2F2F9)
-            ], // Updated gradient colors
+            colors: [Color(0xFFE1E4F9), Color(0xFFF2F2F9)],
             stops: [0.0, 1.0],
           ),
         ),
@@ -79,16 +128,17 @@ class _RegisterPageState extends State<RegisterPage> {
                   SizedBox(height: 20),
                   _buildTextField('Enter your Email', emailNoCtl),
                   SizedBox(height: 20),
+                  _buildTextField('Enter your Phone', phoneNoCtl),
+                  SizedBox(height: 20),
                   _buildTextField('Enter your Password', passNoCtl,
                       obscureText: true),
                   SizedBox(height: 20),
                   _buildTextField('Confirm Password', confpassNoCtl,
                       obscureText: true),
                   SizedBox(height: 30),
-                  _buildButton('Register', reg, isPrimary: true),
+                  _buildButton('Register', registerUser, isPrimary: true),
                   SizedBox(height: 15),
-                  _buildButton('Sign In', navigateToLogin,
-                      isPrimary: true), // Changed to primary
+                  _buildButton('Sign In', navigateToLogin, isPrimary: true),
                 ],
               ),
             ),
@@ -133,7 +183,7 @@ class _RegisterPageState extends State<RegisterPage> {
         child: Text(text),
         style: ElevatedButton.styleFrom(
           foregroundColor: Colors.white,
-          backgroundColor: Color(0xFF8064A2), // Both buttons now use this color
+          backgroundColor: Color(0xFF8064A2),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(30),
           ),
@@ -141,81 +191,6 @@ class _RegisterPageState extends State<RegisterPage> {
           elevation: 5,
         ),
       ),
-    );
-  }
-
-  void reg() {
-    if (_validateFields()) {
-      var data = CustomersRegPostReq(
-          fullname: nameNoCtl.text,
-          phone: phoneNoCtl.text,
-          email: emailNoCtl.text,
-          password: passNoCtl.text,
-          confirmpassword: confpassNoCtl.text,
-          image:
-              "http://202.28.34.197:8888/contents/4a00cead-afb3-45db-a37a-c8bebe08fe0d.png");
-
-      http
-          .post(Uri.parse('$url/customers'),
-              headers: {"Content-Type": "application/json; charset=utf-8"},
-              body: jsonEncode(data.toJson()))
-          .then((response) {
-        if (response.statusCode == 200) {
-          dev.log("Registration successful");
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => HomePage(cid: null)),
-          );
-        } else {
-          _handleError(response);
-        }
-      }).catchError((error) {
-        dev.log("Error during registration: ${error.toString()}");
-        _showSnackBar('เกิดข้อผิดพลาด กรุณาลองอีกครั้งในภายหลัง');
-      });
-    }
-  }
-
-  bool _validateFields() {
-    if (nameNoCtl.text.isEmpty ||
-        emailNoCtl.text.isEmpty ||
-        passNoCtl.text.isEmpty ||
-        confpassNoCtl.text.isEmpty) {
-      _showSnackBar('กรุณากรอกข้อมูลให้ครบทุกช่อง');
-      return false;
-    }
-
-    final emailRegExp = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegExp.hasMatch(emailNoCtl.text)) {
-      _showSnackBar('กรุณากรอกอีเมลให้ถูกต้องตามรูปแบบ xxx@email.com');
-      return false;
-    }
-
-    if (passNoCtl.text != confpassNoCtl.text) {
-      _showSnackBar('รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน');
-      return false;
-    }
-
-    return true;
-  }
-
-  void _handleError(http.Response response) {
-    switch (response.statusCode) {
-      case 400:
-        _showSnackBar('การลงทะเบียนล้มเหลว: ข้อมูลไม่ถูกต้อง');
-        break;
-      case 409:
-        _showSnackBar('การลงทะเบียนล้มเหลว: ข้อมูลซ้ำ');
-        break;
-      default:
-        _showSnackBar('การลงทะเบียนล้มเหลว กรุณาลองอีกครั้ง');
-        break;
-    }
-  }
-
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
     );
   }
 
