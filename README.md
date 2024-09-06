@@ -1,3 +1,4 @@
+##flutter pub get
 # lotto_app
 
 A new Flutter project.
